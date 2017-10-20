@@ -1,28 +1,16 @@
-from os.path import dirname, exists, isdir, join, relpath
+from os.path import dirname, isdir, join
 
+from django.apps import apps
 from django.conf import settings
-import django.core.management.commands.loaddata
 from django.core.files.storage import default_storage
-import django.core.serializers
-from django.db.models import get_apps, get_models, signals
+from django.core.management.commands import loaddata
+from django.db.models import signals
 from django.db.models.fields.files import FileField
 from django.utils._os import upath
+from fixturemedia.util import models_with_filefields
 
 
-# For Python < 3.3
-file_not_found_error = getattr(__builtins__,'FileNotFoundError', IOError)
-
-
-def models_with_filefields():
-    for app in get_apps():
-        modelclasses = get_models(app)
-        for modelclass in modelclasses:
-            if any(isinstance(field, FileField) for field in modelclass._meta.fields):
-                yield modelclass
-
-
-class Command(django.core.management.commands.loaddata.Command):
-
+class Command(loaddata.Command):
     def load_images_for_signal(self, sender, **kwargs):
         instance = kwargs['instance']
         for field in sender._meta.fields:
@@ -36,7 +24,7 @@ class Command(django.core.management.commands.loaddata.Command):
                 try:
                     with open(filepath, 'rb') as f:
                         default_storage.save(path.name, f)
-                except file_not_found_error:
+                except IOError:
                     self.stderr.write("Expected file at {} doesn't exist, skipping".format(filepath))
                     continue
 
@@ -55,7 +43,7 @@ class Command(django.core.management.commands.loaddata.Command):
     def find_fixture_paths(self):
         """Return the full paths to all possible fixture directories."""
         app_module_paths = []
-        for app in get_apps():
+        for app in apps.get_apps():
             if hasattr(app, '__path__'):
                 # It's a 'models/' subpackage
                 for path in app.__path__:

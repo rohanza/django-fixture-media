@@ -43,7 +43,9 @@ class Command(loaddata.Command):
     def find_fixture_paths(self):
         """Return the full paths to all possible fixture directories."""
         app_module_paths = []
-        for app in apps.get_apps():
+        app_configs = apps.get_app_configs()
+        app_models_modules = [ac.models_module for ac in app_configs if ac.models_module is not None]
+        for app in app_models_modules:
             if hasattr(app, '__path__'):
                 # It's a 'models/' subpackage
                 for path in app.__path__:

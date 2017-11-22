@@ -1,5 +1,5 @@
-from os.path import dirname, isdir, join
-
+from __future__ import print_function
+from os.path import dirname, isdir, join, sep
 from django.apps import apps
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -20,13 +20,15 @@ class Command(loaddata.Command):
             if path is None or not path.name:
                 continue
             for fixture_path in self.fixture_media_paths:
+                # only try to load if app_label matches path
+                path_app_name = fixture_path.rsplit(sep, 3)[1]
+                if path_app_name != sender._meta.app_label:
+                    continue
                 filepath = join(fixture_path, path.name)
-                try:
+                # Only save media to storage if path does not exist yet
+                if not default_storage.exists(path.name):
                     with open(filepath, 'rb') as f:
                         default_storage.save(path.name, f)
-                except IOError:
-                    self.stderr.write("Expected file at {} doesn't exist, skipping".format(filepath))
-                    continue
 
     def handle(self, *fixture_labels, **options):
         # Hook up pre_save events for all the apps' models that have FileFields.
